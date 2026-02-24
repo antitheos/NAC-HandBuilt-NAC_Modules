@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 26.5.1, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Ebene_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 100 100" style="enable-background:new 0 0 100 100;" xml:space="preserve">
+<g>
+	<g>
+		<g>
+			<rect width="16.7" height="16.7"/>
+			<polygon points="16.7,16.7 25,12.5 27.8,16.7 			"/>
+			<polygon points="16.7,0 25,12.5 33.3,8.3 33.3,0 			"/>
+			<polygon points="33.3,25 33.3,8.3 50,0 			"/>
+			<polygon points="27.8,33.3 33.3,25 33.3,33.3 			"/>
+			<polygon points="0,25 16.7,16.7 16.7,33.3 			"/>
+			<polygon points="25,37.5 16.7,33.3 27.8,33.3 			"/>
+		</g>
+		<g>
+			<rect x="83.3" y="0" width="16.7" height="16.7"/>
+			<polygon points="83.3,16.7 75,12.5 72.2,16.7 			"/>
+			<polygon points="83.3,0 75,12.5 66.7,8.3 66.7,0 			"/>
+			<polygon points="66.7,25 66.7,8.3 50,0 			"/>
+			<polygon points="72.2,33.3 66.7,25 66.7,33.3 			"/>
+			<polygon points="100,25 83.3,16.7 83.3,33.3 			"/>
+			<polygon points="75,37.5 83.3,33.3 72.2,33.3 			"/>
+		</g>
+	</g>
+	<g>
+		<g>
+			<rect y="83.3" width="16.7" height="16.7"/>
+			<polygon points="16.7,83.3 25,87.5 27.8,83.3 			"/>
+			<polygon points="16.7,100 25,87.5 33.3,91.7 33.3,100 			"/>
+			<polygon points="33.3,75 33.3,91.7 50,100 			"/>
+			<polygon points="27.8,66.7 33.3,75 33.3,66.7 			"/>
+			<polygon points="0,75 16.7,83.3 16.7,66.7 			"/>
+			<polygon points="25,62.5 16.7,66.7 27.8,66.7 			"/>
+		</g>
+		<g>
+			<rect x="83.3" y="83.3" width="16.7" height="16.7"/>
+			<polygon points="83.3,83.3 75,87.5 72.2,83.3 			"/>
+			<polygon points="83.3,100 75,87.5 66.7,91.7 66.7,100 			"/>
+			<polygon points="66.7,75 66.7,91.7 50,100 			"/>
+			<polygon points="72.2,66.7 66.7,75 66.7,66.7 			"/>
+			<polygon points="100,75 83.3,83.3 83.3,66.7 			"/>
+			<polygon points="75,62.5 83.3,66.7 72.2,66.7 			"/>
+		</g>
+	</g>
+</g>
+</svg>
