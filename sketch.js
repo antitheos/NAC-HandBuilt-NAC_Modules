@@ -36,7 +36,7 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   colorMode(HSB, 360, 100, 100, 100);
   cursor(CROSS);
-  activeTileColor = color('#84DADE');
+  activeTileColor = color('#000000'); // black default
   initGrid();
   loadSVGFiles();
 }
@@ -257,7 +257,7 @@ function drawHUD() {
   let line1 =
     'Tileset: ' + activeModuleSet +
     '   |   1-9 / E Q T W Y U : switch tileset' +
-    '   |   x : teal   z : pink' +
+    '   |   c : black   x : teal   z : pink' +
     '   |   r : random [' + (randomMode ? 'ON' : 'off') + ']';
   let line2 =
     'g : grid [' + (drawGrid ? 'ON' : 'off') + ']' +
@@ -294,6 +294,7 @@ function keyReleased() {
   if (key === 'u' || key === 'U') activeModuleSet = 'U';
 
   // Colour shortcuts
+  if (key === 'c' || key === 'C') activeTileColor = color('#000000');
   if (key === 'x' || key === 'X') activeTileColor = color('#84DADE');
   if (key === 'z' || key === 'Z') activeTileColor = color('#ff006e');
 
@@ -380,9 +381,6 @@ function saveSVG() {
 
   let svgW = (maxGX - minGX + 1) * TILE_SIZE;
   let svgH = (maxGY - minGY + 1) * TILE_SIZE;
-  // pixel offset so tile (minGX,minGY) maps to (0,0) in output
-  let offsetX = minGX * TILE_SIZE - TILE_SIZE / 2;
-  let offsetY = minGY * TILE_SIZE - TILE_SIZE / 2;
 
   let parts = [];
   parts.push('<?xml version="1.0" encoding="utf-8"?>');
@@ -393,22 +391,23 @@ function saveSVG() {
   );
   parts.push('<rect width="' + svgW + '" height="' + svgH + '" fill="white"/>');
 
-  // Optional grid lines
+  // Optional grid lines — one line per tile boundary
   if (drawGrid) {
     parts.push('<g stroke="#cccccc" stroke-width="0.5" fill="none">');
     for (let gx = minGX; gx <= maxGX + 1; gx++) {
-      let x = round((gx * TILE_SIZE - TILE_SIZE / 2) - offsetX);
+      let x = TILE_SIZE * (gx - minGX);
       parts.push('<line x1="' + x + '" y1="0" x2="' + x + '" y2="' + svgH + '"/>');
     }
     for (let gy = minGY; gy <= maxGY + 1; gy++) {
-      let y = round((gy * TILE_SIZE - TILE_SIZE / 2) - offsetY);
+      let y = TILE_SIZE * (gy - minGY);
       parts.push('<line x1="0" y1="' + y + '" x2="' + svgW + '" y2="' + y + '"/>');
     }
     parts.push('</g>');
   }
 
-  // Each module SVG has viewBox="0 0 100 100"; scale to TILE_SIZE
-  let scale = TILE_SIZE / 100;
+  // Each module is placed as a nested <svg> with the same viewBox="0 0 100 100"
+  // as the source file. This mirrors the canvas rendering (drawImage with viewBox
+  // clipping) and gives a pixel-perfect match.
 
   for (let gx = 1; gx < gridResolutionX - 1; gx++) {
     for (let gy = 1; gy < gridResolutionY - 1; gy++) {
@@ -422,12 +421,13 @@ function saveSVG() {
         (tiles[gx + 1][gy    ] !== '0' ? '1' : '0');
       let idx = parseInt(bin, 2);
 
-      let posX = (TILE_SIZE * gx - TILE_SIZE / 2) - offsetX;
-      let posY = (TILE_SIZE * gy - TILE_SIZE / 2) - offsetY;
+      // Top-left corner of this tile in the output SVG coordinate space
+      let posX = TILE_SIZE * (gx - minGX);
+      let posY = TILE_SIZE * (gy - minGY);
 
       let fillCSS = colorToCSS(tileColors[gx][gy]);
 
-      // Extract the <g>…</g> block from the module SVG source
+      // Extract the <g>…</g> block from the module SVG source and inject fill
       let svgText = svgData[currentTile][idx];
       let gStart  = svgText.indexOf('<g>');
       let gEnd    = svgText.lastIndexOf('</g>') + 4;
@@ -435,11 +435,15 @@ function saveSVG() {
       let innerG = svgText.slice(gStart, gEnd)
         .replace('<g>', '<g fill="' + fillCSS + '">');
 
+      // Nested <svg> with the original viewBox gives the same clipping the
+      // browser applies when rendering the module as a canvas image
       parts.push(
-        '<g transform="translate(' + posX + ',' + posY + ') scale(' + scale + ')">'
+        '<svg x="' + posX + '" y="' + posY +
+        '" width="' + TILE_SIZE + '" height="' + TILE_SIZE +
+        '" viewBox="0 0 100 100" overflow="hidden">'
       );
       parts.push(innerG);
-      parts.push('</g>');
+      parts.push('</svg>');
     }
   }
 
