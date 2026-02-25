@@ -262,7 +262,7 @@ function drawHUD() {
   let line2 =
     'g : grid [' + (drawGrid ? 'ON' : 'off') + ']' +
     '   |   d : debug [' + (debugMode ? 'ON' : 'off') + ']' +
-    '   |   s : save PNG' +
+    '   |   s : save SVG' +
     '   |   Backspace / Delete : clear' +
     '   |   Left-drag : draw   Right-drag : erase';
 
@@ -277,7 +277,7 @@ function drawHUD() {
 // ---------------------------------------------------------------------------
 
 function keyReleased() {
-  if (key === 's' || key === 'S') saveCanvas(timestamp(), 'png');
+  if (key === 's' || key === 'S') saveSVG();
   if (keyCode === DELETE || keyCode === BACKSPACE) initGrid();
   if (key === 'g' || key === 'G') drawGrid   = !drawGrid;
   if (key === 'd' || key === 'D') debugMode  = !debugMode;
@@ -353,6 +353,108 @@ function windowResized() {
 // ---------------------------------------------------------------------------
 // Utilities
 // ---------------------------------------------------------------------------
+
+function saveSVG() {
+  // Find bounding box of all placed tiles
+  let minGX = gridResolutionX, maxGX = 0;
+  let minGY = gridResolutionY, maxGY = 0;
+  let hasTiles = false;
+  for (let gx = 1; gx < gridResolutionX - 1; gx++) {
+    for (let gy = 1; gy < gridResolutionY - 1; gy++) {
+      if (tiles[gx][gy] !== '0') {
+        if (gx < minGX) minGX = gx;
+        if (gx > maxGX) maxGX = gx;
+        if (gy < minGY) minGY = gy;
+        if (gy > maxGY) maxGY = gy;
+        hasTiles = true;
+      }
+    }
+  }
+  if (!hasTiles) return;
+
+  // 1-tile padding around the drawing
+  minGX = max(1, minGX - 1);
+  minGY = max(1, minGY - 1);
+  maxGX = min(gridResolutionX - 2, maxGX + 1);
+  maxGY = min(gridResolutionY - 2, maxGY + 1);
+
+  let svgW = (maxGX - minGX + 1) * TILE_SIZE;
+  let svgH = (maxGY - minGY + 1) * TILE_SIZE;
+  // pixel offset so tile (minGX,minGY) maps to (0,0) in output
+  let offsetX = minGX * TILE_SIZE - TILE_SIZE / 2;
+  let offsetY = minGY * TILE_SIZE - TILE_SIZE / 2;
+
+  let parts = [];
+  parts.push('<?xml version="1.0" encoding="utf-8"?>');
+  parts.push(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW +
+    '" height="' + svgH +
+    '" viewBox="0 0 ' + svgW + ' ' + svgH + '">'
+  );
+  parts.push('<rect width="' + svgW + '" height="' + svgH + '" fill="white"/>');
+
+  // Optional grid lines
+  if (drawGrid) {
+    parts.push('<g stroke="#cccccc" stroke-width="0.5" fill="none">');
+    for (let gx = minGX; gx <= maxGX + 1; gx++) {
+      let x = round((gx * TILE_SIZE - TILE_SIZE / 2) - offsetX);
+      parts.push('<line x1="' + x + '" y1="0" x2="' + x + '" y2="' + svgH + '"/>');
+    }
+    for (let gy = minGY; gy <= maxGY + 1; gy++) {
+      let y = round((gy * TILE_SIZE - TILE_SIZE / 2) - offsetY);
+      parts.push('<line x1="0" y1="' + y + '" x2="' + svgW + '" y2="' + y + '"/>');
+    }
+    parts.push('</g>');
+  }
+
+  // Each module SVG has viewBox="0 0 100 100"; scale to TILE_SIZE
+  let scale = TILE_SIZE / 100;
+
+  for (let gx = 1; gx < gridResolutionX - 1; gx++) {
+    for (let gy = 1; gy < gridResolutionY - 1; gy++) {
+      let currentTile = tiles[gx][gy];
+      if (currentTile === '0') continue;
+
+      let bin =
+        (tiles[gx    ][gy - 1] !== '0' ? '1' : '0') +
+        (tiles[gx - 1][gy    ] !== '0' ? '1' : '0') +
+        (tiles[gx    ][gy + 1] !== '0' ? '1' : '0') +
+        (tiles[gx + 1][gy    ] !== '0' ? '1' : '0');
+      let idx = parseInt(bin, 2);
+
+      let posX = (TILE_SIZE * gx - TILE_SIZE / 2) - offsetX;
+      let posY = (TILE_SIZE * gy - TILE_SIZE / 2) - offsetY;
+
+      let fillCSS = colorToCSS(tileColors[gx][gy]);
+
+      // Extract the <g>…</g> block from the module SVG source
+      let svgText = svgData[currentTile][idx];
+      let gStart  = svgText.indexOf('<g>');
+      let gEnd    = svgText.lastIndexOf('</g>') + 4;
+      if (gStart === -1 || gEnd <= gStart) continue;
+      let innerG = svgText.slice(gStart, gEnd)
+        .replace('<g>', '<g fill="' + fillCSS + '">');
+
+      parts.push(
+        '<g transform="translate(' + posX + ',' + posY + ') scale(' + scale + ')">'
+      );
+      parts.push(innerG);
+      parts.push('</g>');
+    }
+  }
+
+  parts.push('</svg>');
+
+  let blob = new Blob([parts.join('\n')], { type: 'image/svg+xml;charset=utf-8' });
+  let url  = URL.createObjectURL(blob);
+  let a    = document.createElement('a');
+  a.href     = url;
+  a.download = timestamp() + '.svg';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 function timestamp() {
   let d = new Date();
