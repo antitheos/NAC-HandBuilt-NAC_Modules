@@ -179,9 +179,17 @@ function getSVGImage(moduleKey, index, fillCSS) {
   let cacheKey = moduleKey + '_' + index + '_' + fillCSS;
   if (imgCache[cacheKey]) return imgCache[cacheKey];
 
-  // Inject fill colour into the top-level <g> element so paths inherit it.
   let svgText = svgData[moduleKey][index];
-  svgText = svgText.replace(/<g>/, '<g fill="' + fillCSS + '">');
+
+  // Inject fill colour so all paths inherit it.
+  // Some SVGs wrap paths in a plain <g>; others have paths directly under <svg>.
+  if (svgText.includes('<g>')) {
+    // Replace the first bare <g> with a coloured one
+    svgText = svgText.replace('<g>', '<g fill="' + fillCSS + '">');
+  } else {
+    // Inject fill onto the root <svg> element so direct-child paths inherit it
+    svgText = svgText.replace(/<svg /, '<svg fill="' + fillCSS + '" ');
+  }
 
   let img = new Image();
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText);
@@ -382,33 +390,31 @@ function saveSVG() {
   let svgW = (maxGX - minGX + 1) * TILE_SIZE;
   let svgH = (maxGY - minGY + 1) * TILE_SIZE;
 
-  let parts = [];
-  parts.push('<?xml version="1.0" encoding="utf-8"?>');
-  parts.push(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW +
-    '" height="' + svgH +
-    '" viewBox="0 0 ' + svgW + ' ' + svgH + '">'
-  );
-  parts.push('<rect width="' + svgW + '" height="' + svgH + '" fill="white"/>');
+  // Use canvas2svg to capture drawing calls as SVG — this guarantees
+  // pixel-perfect output for ALL tilesets regardless of their SVG structure.
+  let ctx = new C2S(svgW, svgH);
 
-  // Optional grid lines — one line per tile boundary
+  // White background
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, svgW, svgH);
+
+  // Optional grid lines
   if (drawGrid) {
-    parts.push('<g stroke="#cccccc" stroke-width="0.5" fill="none">');
+    ctx.save();
+    ctx.strokeStyle = '#cccccc';
+    ctx.lineWidth = 0.5;
     for (let gx = minGX; gx <= maxGX + 1; gx++) {
       let x = TILE_SIZE * (gx - minGX);
-      parts.push('<line x1="' + x + '" y1="0" x2="' + x + '" y2="' + svgH + '"/>');
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, svgH); ctx.stroke();
     }
     for (let gy = minGY; gy <= maxGY + 1; gy++) {
       let y = TILE_SIZE * (gy - minGY);
-      parts.push('<line x1="0" y1="' + y + '" x2="' + svgW + '" y2="' + y + '"/>');
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(svgW, y); ctx.stroke();
     }
-    parts.push('</g>');
+    ctx.restore();
   }
 
-  // Each module is placed as a nested <svg> with the same viewBox="0 0 100 100"
-  // as the source file. This mirrors the canvas rendering (drawImage with viewBox
-  // clipping) and gives a pixel-perfect match.
-
+  // Draw each module tile using the same cached HTMLImageElement as the canvas
   for (let gx = 1; gx < gridResolutionX - 1; gx++) {
     for (let gy = 1; gy < gridResolutionY - 1; gy++) {
       let currentTile = tiles[gx][gy];
@@ -421,35 +427,20 @@ function saveSVG() {
         (tiles[gx + 1][gy    ] !== '0' ? '1' : '0');
       let idx = parseInt(bin, 2);
 
-      // Top-left corner of this tile in the output SVG coordinate space
-      let posX = TILE_SIZE * (gx - minGX);
-      let posY = TILE_SIZE * (gy - minGY);
-
       let fillCSS = colorToCSS(tileColors[gx][gy]);
+      let img = getSVGImage(currentTile, idx, fillCSS);
 
-      // Extract the <g>…</g> block from the module SVG source and inject fill
-      let svgText = svgData[currentTile][idx];
-      let gStart  = svgText.indexOf('<g>');
-      let gEnd    = svgText.lastIndexOf('</g>') + 4;
-      if (gStart === -1 || gEnd <= gStart) continue;
-      let innerG = svgText.slice(gStart, gEnd)
-        .replace('<g>', '<g fill="' + fillCSS + '">');
-
-      // Nested <svg> with the original viewBox gives the same clipping the
-      // browser applies when rendering the module as a canvas image
-      parts.push(
-        '<svg x="' + posX + '" y="' + posY +
-        '" width="' + TILE_SIZE + '" height="' + TILE_SIZE +
-        '" viewBox="0 0 100 100" overflow="hidden">'
-      );
-      parts.push(innerG);
-      parts.push('</svg>');
+      // Only draw if the image is already decoded (it should be — we drew it on canvas)
+      if (img.complete && img.naturalWidth > 0) {
+        let destX = TILE_SIZE * (gx - minGX);
+        let destY = TILE_SIZE * (gy - minGY);
+        ctx.drawImage(img, destX, destY, TILE_SIZE, TILE_SIZE);
+      }
     }
   }
 
-  parts.push('</svg>');
-
-  let blob = new Blob([parts.join('\n')], { type: 'image/svg+xml;charset=utf-8' });
+  let svgText = ctx.getSerializedSvg(true);
+  let blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
   let url  = URL.createObjectURL(blob);
   let a    = document.createElement('a');
   a.href     = url;
