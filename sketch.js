@@ -69,11 +69,6 @@ function draw() {
     return;
   }
 
-  if (mouseIsPressed) {
-    if (mouseButton === LEFT)  setTile();
-    if (mouseButton === RIGHT) unsetTile();
-  }
-
   if (drawGrid)  drawGridLines();
   drawModules();
   drawHUD();
@@ -306,8 +301,18 @@ function keyReleased() {
   return false;
 }
 
-// Prevent context menu on right-click inside the canvas
+// Place/erase tile on initial click and while dragging
 function mousePressed() {
+  if (!isLoaded) return false;
+  if (mouseButton && mouseButton.left)  setTile();
+  if (mouseButton && mouseButton.right) unsetTile();
+  return false; // prevent context menu & default browser behaviour
+}
+
+function mouseDragged() {
+  if (!isLoaded) return false;
+  if (mouseButton && mouseButton.left)  setTile();
+  if (mouseButton && mouseButton.right) unsetTile();
   return false;
 }
 
